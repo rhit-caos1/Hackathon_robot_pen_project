@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import division
 # First import the library
 import pyrealsense2 as rs
 # Import Numpy for easy array manipulation
@@ -5,8 +7,7 @@ import numpy as np
 # Import OpenCV for easy image rendering
 import cv2
 
-from __future__ import print_function
-from __future__ import division
+
 import argparse
 
 # Create a pipeline
@@ -90,10 +91,13 @@ try:
         images = np.hstack((bg_removed, depth_colormap))
 
         color_image_hsv = cv2.cvtColor(color_image,cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv,)
+        lower_purple = np.array([130,40,40])
+        upper_purple = np.array([190,255,255])
+        mask = cv2.inRange(color_image_hsv,lower_purple,upper_purple)
 
         cv2.namedWindow('Align Example', cv2.WINDOW_NORMAL)
-        cv2.imshow('Align Example', color_image_hsv)
+        cv2.imshow('Align Example', color_image)
+        cv2.imshow('mask',mask)
         key = cv2.waitKey(1)
         # Press esc or 'q' to close the image window
         if key & 0xFF == ord('q') or key == 27:
