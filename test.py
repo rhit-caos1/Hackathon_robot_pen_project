@@ -39,6 +39,24 @@ if device_product_line == 'L500':
 else:
     config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
+#setupslidebar
+minH=110
+maxH=150
+minS=48
+maxS=250
+minV=30
+maxV=250
+alpha_slider_max = 359
+def nothing(x):
+    pass
+cv2.namedWindow('controls')
+cv2.createTrackbar('max','controls',150,alpha_slider_max,nothing)
+cv2.createTrackbar('min','controls',110,alpha_slider_max,nothing)
+cv2.createTrackbar('maxs','controls',255,alpha_slider_max,nothing)
+cv2.createTrackbar('mins','controls',94,alpha_slider_max,nothing)
+cv2.createTrackbar('maxv','controls',255,alpha_slider_max,nothing)
+cv2.createTrackbar('minv','controls',67,alpha_slider_max,nothing)
+
 # Start streaming
 profile = pipeline.start(config)
 
@@ -56,6 +74,7 @@ align_to = rs.stream.color
 align = rs.align(align_to)
 i=0
 # Streaming loop
+
 try:
     while True:
         # Get frameset of color and depth
@@ -91,13 +110,45 @@ try:
         images = np.hstack((bg_removed, depth_colormap))
 
         color_image_hsv = cv2.cvtColor(color_image,cv2.COLOR_BGR2HSV)
-        lower_purple = np.array([130,40,40])
-        upper_purple = np.array([190,255,255])
+        lower_purple = np.array([minH,minS,minV])
+        upper_purple = np.array([maxH,maxS,maxV])
         mask = cv2.inRange(color_image_hsv,lower_purple,upper_purple)
+        burmask = cv2.blur(mask,(40,40))
+        res = cv2.bitwise_and(color_image,color_image,mask = burmask)
+        ret,thresh = cv2.threshold(burmask,1,255,cv2.THRESH_OTSU)
+        contours,hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+        cv2.drawContours(color_image,contours,-1,(0,250,0),3)
+        
+        contoursArea = {}
+        for i in contours:
+            area = cv2.contourArea(i)
+            contoursArea = {area:i}
+
+        maxarea = sorted(contoursArea.keys())
+        
+
+        if len(maxarea)>1:
+            contours = contoursArea[maxarea[-1]]
+        elif len(maxarea)==1:
+            contours = contoursArea[maxarea[0]]
+        
+        
+        cnt = contours#[0]
+        M = cv2.moments(cnt)
+        if M['m00']!=0:
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            cv2.circle(color_image,[cx,cy],10,(255,0,255),5)
 
         cv2.namedWindow('Align Example', cv2.WINDOW_NORMAL)
         cv2.imshow('Align Example', color_image)
-        cv2.imshow('mask',mask)
+        cv2.imshow('mask',burmask)
+        minH = int(cv2.getTrackbarPos('min','controls'))
+        maxH = int(cv2.getTrackbarPos('max','controls'))
+        minS = int(cv2.getTrackbarPos('mins','controls'))
+        maxS = int(cv2.getTrackbarPos('maxs','controls'))
+        minV = int(cv2.getTrackbarPos('minv','controls'))
+        maxV = int(cv2.getTrackbarPos('maxv','controls'))
         key = cv2.waitKey(1)
         # Press esc or 'q' to close the image window
         if key & 0xFF == ord('q') or key == 27:
