@@ -1,14 +1,25 @@
 from __future__ import print_function
 from __future__ import division
+from cmath import pi
+from interbotix_xs_modules.xs_robot.arm import InterbotixManipulatorXS
+import modern_robotics as mr
 # First import the library
 import pyrealsense2 as rs
 # Import Numpy for easy array manipulation
 import numpy as np
 # Import OpenCV for easy image rendering
 import cv2
+import math
 
 
 import argparse
+
+#setup robot
+robot = InterbotixManipulatorXS("px100", "arm", "gripper")
+robot.arm.go_to_sleep_pose()
+robot.arm.set_ee_cartesian_trajectory(0,0,0.05)
+robot.arm.set_single_joint_position("wrist_angle",0.7)
+
 
 # Create a pipeline
 pipeline = rs.pipeline()
@@ -55,10 +66,12 @@ cv2.createTrackbar('min','controls',110,alpha_slider_max,nothing)
 cv2.createTrackbar('maxs','controls',255,alpha_slider_max,nothing)
 cv2.createTrackbar('mins','controls',94,alpha_slider_max,nothing)
 cv2.createTrackbar('maxv','controls',255,alpha_slider_max,nothing)
-cv2.createTrackbar('minv','controls',67,alpha_slider_max,nothing)
+cv2.createTrackbar('minv','controls',30,alpha_slider_max,nothing)
 
 # Start streaming
 profile = pipeline.start(config)
+cfgprofile = profile.get_stream(rs.stream.color)
+intr = cfgprofile.as_video_stream_profile().get_intrinsics()
 
 # Getting the depth sensor's depth scale (see rs-align example for explanation)
 depth_sensor = profile.get_device().first_depth_sensor()
@@ -74,6 +87,7 @@ align_to = rs.stream.color
 align = rs.align(align_to)
 i=0
 # Streaming loop
+grab = 0
 
 try:
     while True:
@@ -113,7 +127,11 @@ try:
         lower_purple = np.array([minH,minS,minV])
         upper_purple = np.array([maxH,maxS,maxV])
         mask = cv2.inRange(color_image_hsv,lower_purple,upper_purple)
-        burmask = cv2.blur(mask,(40,40))
+        #burmask = cv2.blur(mask,(40,40))'
+        element1 = cv2.getStructuringElement(0,(5,5),(2,2))
+        burmask = cv2.morphologyEx(mask,2,element1)
+        #burmask = cv2.morphologyEx(burmask,3,element1)
+        burmask = cv2.blur(burmask,(40,40))
         res = cv2.bitwise_and(color_image,color_image,mask = burmask)
         ret,thresh = cv2.threshold(burmask,1,255,cv2.THRESH_OTSU)
         contours,hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
@@ -123,8 +141,9 @@ try:
         for i in contours:
             area = cv2.contourArea(i)
             contoursArea = {area:i}
-
+        #print(contoursArea.keys)
         maxarea = sorted(contoursArea.keys())
+        #print(maxarea)
         
 
         if len(maxarea)>1:
@@ -139,6 +158,32 @@ try:
             cx = int(M['m10']/M['m00'])
             cy = int(M['m01']/M['m00'])
             cv2.circle(color_image,[cx,cy],10,(255,0,255),5)
+            #print(cx,cy,depth_image[cy][cx])
+            coordpen = rs.rs2_deproject_pixel_to_point(intr,[cy,cx],depth_image[cy][cx])
+            
+            
+            truex = int(math.sqrt(coordpen[0]**2+coordpen[2]**2)*1)
+            truey = int(coordpen[1])
+            print(truex,truey)
+            if 200<truex<420 and 0<truey<200:
+                angle = math.atan((truex-300)/(truey+180))
+                if -1.57<angle<1.57:
+                    print(angle*180/pi)
+                    #robot.gripper.release()
+                    robot.arm.set_single_joint_position("waist",angle)
+                    grab = grab+1
+                    if grab == 5:
+                        robot.gripper.release()
+                        xmove = float(abs(coordpen[1]/1000)/math.cos(angle)+0.04)
+                        print(xmove)
+                        robot.arm.set_ee_cartesian_trajectory(xmove,0,0)
+                        robot.gripper.grasp()
+                        grab = 0
+                        robot.arm.set_ee_cartesian_trajectory(-xmove,0,0.01)
+                        robot.arm.set_single_joint_position("waist",0.001)
+                        robot.gripper.release()
+                        robot.gripper.grasp()
+                        break
 
         cv2.namedWindow('Align Example', cv2.WINDOW_NORMAL)
         cv2.imshow('Align Example', color_image)
