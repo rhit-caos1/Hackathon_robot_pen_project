@@ -165,22 +165,25 @@ try:
             truex = int(math.sqrt(coordpen[0]**2+coordpen[2]**2)*1)
             truey = int(coordpen[1])
             print(truex,truey)
-            if 200<truex<420 and 0<truey<200:
-                angle = math.atan((truex-300)/(truey+180))
+            if 200<truex<420 and 0<truey<159:
+                angle = math.atan((truex-300)/(truey+160))
                 if -1.57<angle<1.57:
                     print(angle*180/pi)
                     #robot.gripper.release()
                     robot.arm.set_single_joint_position("waist",angle)
                     grab = grab+1
-                    if grab == 5:
+                    if grab == 4:
                         robot.gripper.release()
-                        xmove = float(abs(coordpen[1]/1000)/math.cos(angle)+0.04)
-                        print(xmove)
+                        xmove = float(abs(coordpen[1]*depth_scale)/math.cos(angle)+0.03)
+                        ymove = float((240-cy)/480*((truex-200)/220)*0.4)
+                        print(xmove,ymove)
+                        robot.arm.set_ee_cartesian_trajectory(0,0,ymove)
                         robot.arm.set_ee_cartesian_trajectory(xmove,0,0)
                         robot.gripper.grasp()
                         grab = 0
-                        robot.arm.set_ee_cartesian_trajectory(-xmove,0,0.01)
+                        robot.arm.set_ee_cartesian_trajectory(-xmove,0,0.1-ymove)
                         robot.arm.set_single_joint_position("waist",0.001)
+                        robot.arm.set_ee_cartesian_trajectory(0,0,-0.1)
                         robot.gripper.release()
                         robot.gripper.grasp()
                         break

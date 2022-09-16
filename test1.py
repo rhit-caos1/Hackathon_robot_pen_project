@@ -153,7 +153,7 @@ try:
             cx = int(M['m10']/M['m00'])
             cy = int(M['m01']/M['m00'])
             cv2.circle(color_image,[cx,cy],10,(255,0,255),5)
-            #print(cx,cy,depth_image[cy][cx])
+            print(cx,cy,depth_image[cy][cx])
             coordpen = rs.rs2_deproject_pixel_to_point(intr,[cy,cx],depth_image[cy][cx])
             
             
