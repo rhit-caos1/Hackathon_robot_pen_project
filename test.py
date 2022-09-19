@@ -1,6 +1,7 @@
 from __future__ import print_function
 from __future__ import division
 from cmath import pi
+from time import sleep
 from interbotix_xs_modules.xs_robot.arm import InterbotixManipulatorXS
 import modern_robotics as mr
 # First import the library
@@ -18,7 +19,7 @@ import argparse
 robot = InterbotixManipulatorXS("px100", "arm", "gripper")
 robot.arm.go_to_sleep_pose()
 robot.arm.set_ee_cartesian_trajectory(0,0,0.05)
-robot.arm.set_single_joint_position("wrist_angle",0.7)
+robot.arm.set_single_joint_position("wrist_angle",0.45)
 
 
 # Create a pipeline
@@ -165,8 +166,8 @@ try:
             truex = int(math.sqrt(coordpen[0]**2+coordpen[2]**2)*1)
             truey = int(coordpen[1])
             print(truex,truey)
-            if 200<truex<420 and 0<truey<159:
-                angle = math.atan((truex-300)/(truey+160))
+            if 170<truex<420 and 0<truey<159:
+                angle = math.atan((truex-240)/(truey+160))
                 if -1.57<angle<1.57:
                     print(angle*180/pi)
                     #robot.gripper.release()
@@ -174,14 +175,15 @@ try:
                     grab = grab+1
                     if grab == 4:
                         robot.gripper.release()
-                        xmove = float(abs(coordpen[1]*depth_scale)/math.cos(angle)+0.03)
+                        xmove = float(abs((coordpen[1]*depth_scale))/math.cos(angle)+0.03)
                         ymove = float((240-cy)/480*((truex-200)/220)*0.4)
                         print(xmove,ymove)
-                        robot.arm.set_ee_cartesian_trajectory(0,0,ymove)
+                        robot.arm.set_ee_cartesian_trajectory(0,0,ymove+0.05)
                         robot.arm.set_ee_cartesian_trajectory(xmove,0,0)
                         robot.gripper.grasp()
                         grab = 0
-                        robot.arm.set_ee_cartesian_trajectory(-xmove,0,0.1-ymove)
+                        sleep(10)
+                        robot.arm.set_ee_cartesian_trajectory(-xmove,0,0.1-ymove-0.05)
                         robot.arm.set_single_joint_position("waist",0.001)
                         robot.arm.set_ee_cartesian_trajectory(0,0,-0.1)
                         robot.gripper.release()
